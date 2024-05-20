@@ -1,7 +1,16 @@
 package main
 
-import "log"
+import (
+	"log"
+	"os"
+
+	dotenv "github.com/CrazyCatViking/omega/utils/src"
+)
 
 func main() {
-  log.Println("Hello, World!")
+  dotenv.InitEnv()
+
+  token := os.Getenv("BOT_TOKEN")
+
+  log.Println(token)
 }
