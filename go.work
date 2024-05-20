@@ -4,5 +4,6 @@ use (
 	./admin
 	./bot
 	./dashboard
+	./discord
 	./utils
 )
