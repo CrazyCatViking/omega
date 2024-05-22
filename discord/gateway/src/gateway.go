@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"time"
@@ -9,11 +10,36 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func Test() {
-  gatewayUri := os.Getenv("DISCORD_GATEWAY_URI")
-  botToken := os.Getenv("BOT_TOKEN")
+type DiscordGateway struct {
+  botToken string
+  intents int
+  shardId int
+  shardCount int
 
-  log.Println("Connecting to gateway at", gatewayUri)
+  connection *websocket.Conn
+
+  eventHandler *EventHandler
+}
+
+type ConnectionOptions struct {
+  BotToken string
+  Intents int 
+  ShardId int
+  ShardCount int
+}
+
+func NewGateway(options ConnectionOptions) *DiscordGateway {
+  return &DiscordGateway{
+    botToken: options.BotToken,
+    intents: options.Intents,
+    shardId: options.ShardId,
+    shardCount: options.ShardCount,
+    eventHandler: NewEventHandler(),
+  }
+}
+
+func (gateway *DiscordGateway) Listen() {
+  gatewayUri := os.Getenv("DISCORD_GATEWAY_URI")
 
   connection, _, err := websocket.DefaultDialer.Dial(gatewayUri, nil)
 
@@ -21,12 +47,45 @@ func Test() {
     log.Fatal("Error connecting to gateway:", err)
   }
 
-  defer connection.Close()
+  gateway.connection = connection
+  gateway.performHandshake()
 
+  go gateway.SendHeartbeat();
+
+  for {
+    _, message, err := gateway.connection.ReadMessage()
+
+    if err != nil {
+      log.Println("Error reading message:", err)
+      return
+    }
+
+    gatewayEvent := gatewaymodels.GatewayEvent{}
+    err = json.Unmarshal(message, &gatewayEvent)
+
+    if err != nil {
+      log.Println("Error decoding message:", err)
+      return
+    }
+
+    switch (gatewayEvent.OpCode) {
+      case Dispatch:
+        gateway.eventHandler.HandleEvent(gatewayEvent)
+      default:
+        log.Println("Unhandled opcode:", gatewayEvent.OpCode)
+    }
+  }
+}
+
+func (gateway *DiscordGateway) CloseConnection() {
+  gateway.connection.Close()
+}
+
+func (gateway *DiscordGateway) performHandshake() error {
   handshakeData := gatewaymodels.HandshakeData {
-    Token: botToken, 
-    Intents: 513,
-    Shard: []int{0, 1},
+    Token: gateway.botToken, 
+    Intents: gateway.intents,
+    Shard: []int{gateway.shardId, gateway.shardCount},
     Properties: gatewaymodels.PropertiesData {
       Os: "linux",
       Browser: "omega",
@@ -37,7 +96,7 @@ func Test() {
       Afk: false,
       Activities: []gatewaymodels.ActivityData {
         {
-          Name: "with the API",
+          Name: "Initializing...",
           Type: 0,
         },
       },
@@ -45,23 +104,16 @@ func Test() {
   }
 
   payloadData := gatewaymodels.GatewayPayload[gatewaymodels.HandshakeData] {
-    OpCode: 2,
+    OpCode: Identify,
     Data: handshakeData,
   }
   
-  err = connection.WriteJSON(payloadData)
+  err := gateway.connection.WriteJSON(payloadData)
 
-  go func() {
-    for {
-      _, message, err := connection.ReadMessage()
-      if err != nil {
-        log.Println("Error reading message:", err)
-        return
-      }
-      log.Printf("Received: %s\n", message)
-    }
-  }()
+  return err
+}
 
+func (gateway *DiscordGateway) SendHeartbeat() {
   heartbeatTicker := time.NewTicker(41 * time.Second)
   defer heartbeatTicker.Stop()
 
@@ -69,10 +121,10 @@ func Test() {
     select {
     case <-heartbeatTicker.C:
       heartbeatPayload := map[string]interface{}{
-        "op": 1,
+        "op": Heartbeat,
         "d":  nil,
       }
-      err = connection.WriteJSON(heartbeatPayload)
+      err := gateway.connection.WriteJSON(heartbeatPayload)
       if err != nil {
         log.Println("Error sending heartbeat:", err)
         return

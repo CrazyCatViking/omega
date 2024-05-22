@@ -1,5 +1,7 @@
 package gatewaymodels
 
+import "encoding/json"
+
 type GatewayPayload[T any] struct {
   OpCode int `json:"op"`
   Data T `json:"d"`
@@ -7,7 +9,7 @@ type GatewayPayload[T any] struct {
 
 type GatewayEvent struct {
   OpCode int `json:"op"`
-  Data string `json:"d"`
+  Data json.RawMessage `json:"d"`
   EventName string `json:"t"`
   SequenceNumber int `json:"s"`
 }
