@@ -19,6 +19,7 @@ type DiscordGateway struct {
   connection *websocket.Conn
 
   eventHandler *EventHandler
+  sequenceNumber int
 }
 
 type ConnectionOptions struct {
@@ -35,6 +36,7 @@ func NewGateway(options ConnectionOptions) *DiscordGateway {
     shardId: options.ShardId,
     shardCount: options.ShardCount,
     eventHandler: NewEventHandler(),
+    sequenceNumber: 0,
   }
 }
 
@@ -68,9 +70,18 @@ func (gateway *DiscordGateway) Listen() {
       return
     }
 
+    if (gatewayEvent.SequenceNumber > gateway.sequenceNumber) {
+      gateway.sequenceNumber = gatewayEvent.SequenceNumber
+      log.Println("Updated sequence number to:", gateway.sequenceNumber)
+    }
+
     switch (gatewayEvent.OpCode) {
       case Dispatch:
         gateway.eventHandler.HandleEvent(gatewayEvent)
+        break;
+      case HeartbeatAck:
+        log.Println("Heartbeat acknowledged")
+        break;
       default:
         log.Println("Unhandled opcode:", gatewayEvent.OpCode)
     }
@@ -122,7 +133,7 @@ func (gateway *DiscordGateway) SendHeartbeat() {
     case <-heartbeatTicker.C:
       heartbeatPayload := map[string]interface{}{
         "op": Heartbeat,
-        "d":  nil,
+        "d":  gateway.sequenceNumber,
       }
       err := gateway.connection.WriteJSON(heartbeatPayload)
       if err != nil {

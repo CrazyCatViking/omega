@@ -1,8 +1,8 @@
 package gatewaymodels
 
 type Message struct {
-  D	Snowflake `json:"d"`
-  ChannelId	Snowflake `json:"channel_id"`
+  D	string `json:"d"`
+  ChannelId	string `json:"channel_id"`
   // Author string `json:"author"`
   Content string `json:"content"`
   Timestamp	string `json:"timestamp"`
@@ -17,11 +17,11 @@ type Message struct {
   // Reactions string `json:"reactions"`
   Nonce string `json:"nonce"`
   Pinned bool `json:"pinned"`
-  WebhookId Snowflake `json:"webhook_id"`
+  WebhookId string `json:"webhook_id"`
   Type int `json:"type"`
   // Activity string `json:"activity"`
   // Application string `json:"application"`
-  ApplicationId Snowflake `json:"application_id"`
+  ApplicationId string `json:"application_id"`
   // MessageReference string `json:"message_reference"`
   Flags int `json:"flags"`
   // ReferencedMessage string `json:"referenced_message"`
@@ -36,4 +36,11 @@ type Message struct {
   // Resolved string `json:"resolved"`
   // Poll string `json:"poll"`
   // Call string `json:"call"`
+}
+
+type MessageCreate struct {
+  Message
+  GuildId string `json:"guild_id"`
+  Member GuildMember `json:"member"`
+  // Mentions string `json:"mentions"` 
 }

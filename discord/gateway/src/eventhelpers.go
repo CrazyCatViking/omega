@@ -11,9 +11,9 @@ func (gateway *DiscordGateway) On(event string, handler func(payload json.RawMes
   gateway.eventHandler.on(event, handler)
 }
 
-func (gateway *DiscordGateway) OnMessageCreate(handler func(event gatewaymodels.Message)) {
+func (gateway *DiscordGateway) OnMessageCreate(handler func(event gatewaymodels.MessageCreate)) {
   wrappedHandler := func(payload json.RawMessage) {
-    message := gatewaymodels.Message{}
+    message := gatewaymodels.MessageCreate{}
     err := json.Unmarshal([]byte(payload), &message)
     
     if err != nil {
